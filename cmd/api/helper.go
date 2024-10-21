@@ -53,12 +53,18 @@ func (app *application) createAccessToken(user models.User) (string, error) {
 	return accessToken, nil
 }
 func (app *application) createRefreshToken(user models.User) (string, error) {
-	rt := models.NewRefreshToken(user.ID)
+	rt := models.RefreshToken{
+		ID:        primitive.NewObjectID(),
+		UserId:    user.ID,
+		IsRevoked: false,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
 	if err := app.models.Token.Insert(&rt); err != nil {
 		return "", err
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		Issuer:    "goecom",
 		Audience:  jwt.ClaimStrings{user.ID.Hex()},

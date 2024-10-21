@@ -24,16 +24,6 @@ type TokenModel struct {
 	coll *mongo.Collection
 }
 
-func NewRefreshToken(id primitive.ObjectID) RefreshToken {
-	return RefreshToken{
-		ID:        primitive.NewObjectID(),
-		UserId:    id,
-		IsRevoked: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-}
-
 func (m TokenModel) Insert(rt *RefreshToken) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
