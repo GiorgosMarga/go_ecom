@@ -10,13 +10,20 @@ import (
 func (app *application) authenticateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		header := c.Request.Header["Authorization"][0]
-		if header == "" {
+		header := c.Request.Header["Authorization"]
+		if len(header) == 0 {
 			app.notAuthenticatedError(c)
 			c.Abort()
 			return
 		}
-		splittedHeader := strings.Split(header, " ")
+
+		authHeader := header[0]
+		if authHeader == "" {
+			app.notAuthenticatedError(c)
+			c.Abort()
+			return
+		}
+		splittedHeader := strings.Split(authHeader, " ")
 		if len(splittedHeader) != 2 {
 			app.notAuthenticatedError(c)
 			c.Abort()

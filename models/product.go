@@ -135,3 +135,29 @@ func (m ProductModel) Update(product *Product) error {
 	}
 	return nil
 }
+
+func (m ProductModel) GetPriceForOrder(idToQuantity map[primitive.ObjectID]int) (float64, error) {
+	ids := make([]primitive.ObjectID, 0)
+	for k := range idToQuantity {
+		ids = append(ids, k)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	products := make([]Product, 0)
+	filter := bson.M{"_id": bson.M{"$in": ids}}
+	cursor, err := m.coll.Find(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := cursor.All(ctx, &products); err != nil {
+		return 0, err
+	}
+
+	total := 0.0
+	for _, product := range products {
+		total += float64(idToQuantity[product.ID]) * product.Price
+	}
+	return total, err
+}

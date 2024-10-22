@@ -44,3 +44,13 @@ func IsValidID(id string) bool {
 	_, err := primitive.ObjectIDFromHex(id)
 	return err == nil
 }
+
+func IsAllowedValue(target int, allowedValues []int) bool {
+	for _, val := range allowedValues {
+		if val == target {
+			return true
+		}
+	}
+	return false
+	
+}

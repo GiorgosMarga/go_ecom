@@ -2,8 +2,10 @@ package models
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/GiorgosMarga/ecom_go/internal/validator"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -37,49 +39,86 @@ type OrderModel struct {
 	productsColl *mongo.Collection
 }
 
-func getProductsIds(products []OrderProducts) []primitive.ObjectID {
-	ids := make([]primitive.ObjectID, len(products))
-	for i, product := range products {
-		ids[i] = product.ProductId
-	}
-	return ids
+type OrderUpdatePayload struct {
+	Products []OrderProducts `json:"products" bson:"products"`
+	Status   *int            `json:"status" bson:"status"`
 }
-func calculateOrderTotal(products []Product, order *Order) float64 {
-	productsToQuantity := make(map[primitive.ObjectID]int)
-	for _, p := range order.Products {
-		productsToQuantity[p.ProductId] += p.Quantity
-	}
 
-	total := 0.0
-	for _, p := range products {
-		total += p.Price * float64(productsToQuantity[p.ID])
+func ValidateOrderUpdatePayload(v *validator.Validator, payload OrderUpdatePayload) {
+	if payload.Status != nil {
+		v.Validate(validator.IsAllowedValue(*payload.Status, []int{StatusPending,
+			StatusPayed,
+			StatusShipped,
+			StatusDelivered,
+			StatusCanceled}), "status", "not allowed status")
 	}
-	return total
 }
+
 func (m OrderModel) Insert(order *Order) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-
-	ids := getProductsIds(order.Products)
-	filter := bson.M{"_id": bson.M{"$in": ids}}
-	cursor, err := m.productsColl.Find(ctx, filter)
-	if err != nil {
-		return err
-	}
-	var products []Product
-	if err := cursor.All(ctx, &products); err != nil {
-		return err
-	}
-
 	order.ID = primitive.NewObjectID()
 	order.Status = StatusPending
-	order.Total = calculateOrderTotal(products, order)
 	order.CreatedAt = time.Now()
 	order.UpdatedAt = time.Now()
 
-	_, err = m.orderColl.InsertOne(ctx, order)
+	_, err := m.orderColl.InsertOne(ctx, order)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (m OrderModel) Get(id primitive.ObjectID) (*Order, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	order := &Order{}
+	filter := bson.M{"_id": id}
+
+	err := m.orderColl.FindOne(ctx, filter).Decode(&order)
+	if err != nil {
+		switch {
+		case errors.Is(err, mongo.ErrNoDocuments):
+			return nil, ErrNotFound
+		default:
+			return nil, err
+		}
+	}
+	return order, err
+}
+
+func (m OrderModel) Delete(id primitive.ObjectID) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": id}
+
+	res, err := m.orderColl.DeleteOne(ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	if res.DeletedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (m OrderModel) Update(order *Order) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": order.ID}
+	update := bson.D{{Key: "$set", Value: order}}
+
+	res, err := m.orderColl.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if res.ModifiedCount == 0 {
+		return ErrNotFound
 	}
 	return nil
 }

@@ -12,8 +12,8 @@ type config struct {
 func NewConfig() *config {
 	return &config{
 		port:      readENV("PORT", "8080"),
-		mongoURI:  readENV("ECOMGO_URI", "mongodb://ecomgo_catbreathe:a950d57379fe11347d4f762a099740753a193eea@nor.h.filess.io:27018/ecomgo_catbreathe"),
-		jwtSecret: []byte(readENV("JWT_SECRET", "password")),
+		mongoURI:  readENV("ECOMGO_URI", ""),
+		jwtSecret: []byte(readENV("JWT_SECRET", "")),
 		ginMode:   readENV("GIN_MODE", "debug"),
 	}
 }
