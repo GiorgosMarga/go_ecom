@@ -14,6 +14,7 @@ func (app *application) run() error {
 	app.registerCartRoutes(r)
 	app.registerTokenRoutes(r)
 	app.registerOrderRoutes(r)
+	app.registerReviewRoutes(r)
 	fmt.Printf("Server is listening on port %s\n", app.cfg.port)
 	return r.Run(fmt.Sprintf(":%s", app.cfg.port))
 }

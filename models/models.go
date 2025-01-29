@@ -8,6 +8,7 @@ type Models struct {
 	Cart    CartModel
 	Token   TokenModel
 	Order   OrderModel
+	Review  ReviewModel
 }
 
 func NewModels(db *mongo.Database) Models {
@@ -17,8 +18,9 @@ func NewModels(db *mongo.Database) Models {
 		Token:   TokenModel{coll: db.Collection("tokens", nil)},
 		Cart:    CartModel{coll: db.Collection("products", nil)},
 		Order: OrderModel{
-			productsColl: db.Collection("products", nil),
+			productsColl: db.Collection("products", nil), // no need
 			orderColl:    db.Collection("orders", nil),
 		},
+		Review: ReviewModel{coll: db.Collection("review", nil)},
 	}
 }
