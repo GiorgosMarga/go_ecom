@@ -13,6 +13,9 @@ import (
 
 type Product struct {
 	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Name        string             `json:"name" bson:"name"`
+	Tags        string             `json:"tags" bson:"tags"`
+	Img         string             `json:"img" bson:"img"`
 	Description string             `json:"description" bson:"description"`
 	Price       float64            `json:"price" bson:"price"`
 	Stock       int                `json:"-" bson:"stock"`
@@ -41,10 +44,23 @@ func validatePrice(v *validator.Validator, price float64) {
 func validateStock(v *validator.Validator, stock int) {
 	v.Validate(stock >= 0, "stock", "must be positive")
 }
+func validateImg(v *validator.Validator, img string) {
+	v.Validate(len(img) > 0, "img", "must be provided")
+}
+func validateName(v *validator.Validator, name string) {
+	v.Validate(len(name) > 0, "name", "must be provided")
+}
+
+func validateTags(v *validator.Validator, tags string) {
+	v.Validate(len(tags) >= 0, "tags", "must be provided")
+}
 func ValidateProduct(v *validator.Validator, p Product) {
 	validateDescription(v, p.Description)
 	validatePrice(v, p.Price)
 	validateStock(v, p.Stock)
+	validateImg(v, p.Img)
+	validateName(v, p.Name)
+	validateTags(v, p.Tags)
 }
 
 func ValidateUpdatePayload(v *validator.Validator, p ProductUpdatePayload) {

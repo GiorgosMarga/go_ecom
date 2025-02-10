@@ -9,8 +9,9 @@ import (
 func (app *application) run() error {
 	gin.SetMode(app.cfg.ginMode)
 	r := gin.Default()
-	app.registerUserRoutes(r)
+	r.Use(app.corsMiddleware())
 	app.registerProductRoutes(r)
+	app.registerUserRoutes(r)
 	app.registerCartRoutes(r)
 	app.registerTokenRoutes(r)
 	app.registerOrderRoutes(r)

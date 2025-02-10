@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/GiorgosMarga/ecom_go/models"
@@ -37,7 +36,6 @@ func (app *application) refreshTokenHandler(c *gin.Context) {
 		app.notAuthenticatedError(c)
 		return
 	}
-	fmt.Println(tokenId)
 
 	userId, err := app.models.Token.GetForUser(tokenId)
 	if err != nil {

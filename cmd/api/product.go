@@ -1,18 +1,23 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/GiorgosMarga/ecom_go/internal/validator"
 	"github.com/GiorgosMarga/ecom_go/models"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 )
 
 func (app *application) registerProductRoutes(router *gin.Engine) {
 	v1 := router.Group("/api/v1/products")
-	v1.POST("/", app.authenticateUser(), app.authorizeUser(), app.createProductHandler)
+	v1.POST("", app.authenticateUser(), app.authorizeUser(), app.createProductHandler)
 	v1.GET("/:id", app.getProductHandler)
 	v1.DELETE("/:id", app.authenticateUser(), app.authorizeUser(), app.deleteProductHandler)
 	v1.PATCH("/:id", app.authenticateUser(), app.authorizeUser(), app.updateProductHandler)
@@ -20,18 +25,45 @@ func (app *application) registerProductRoutes(router *gin.Engine) {
 }
 
 func (app *application) createProductHandler(c *gin.Context) {
-	var payload models.Product
-
-	if err := c.BindJSON(&payload); err != nil {
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil { // 32 MB max memory
 		app.badRequestError(c, err)
 		return
 	}
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image is required"})
+		return
+	}
+	defer file.Close()
 
+	bucket := "shoewiz"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	result, err := app.uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket: &bucket,
+		Key:    aws.String(header.Filename),
+		Body:   file,
+	})
+	if err != nil {
+		app.internalServerError(c, err)
+		return
+	}
+	jsonData := c.PostForm("data")
+	var payload models.Product
+
+	if err := json.Unmarshal([]byte(jsonData), &payload); err != nil {
+		app.badRequestError(c, err)
+		return
+	}
 	// TODO: validate payload
 	product := models.Product{
 		Description: payload.Description,
 		Price:       payload.Price,
 		Stock:       payload.Stock,
+		Name:        payload.Name,
+		Img:         result.Location,
+		Tags:        payload.Tags,
 	}
 
 	v := validator.NewValidator()
@@ -40,7 +72,7 @@ func (app *application) createProductHandler(c *gin.Context) {
 		return
 	}
 
-	err := app.models.Product.Insert(&product)
+	err = app.models.Product.Insert(&product)
 	if err != nil {
 		app.internalServerError(c, err)
 		return

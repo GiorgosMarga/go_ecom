@@ -11,7 +11,7 @@ import (
 
 func (app *application) registerCartRoutes(router *gin.Engine) {
 	v1 := router.Group("/api/v1/cart")
-	v1.POST("/", app.authenticateUser(), app.createCartHandler)
+	v1.POST("", app.authenticateUser(), app.createCartHandler)
 	v1.GET("/:id", app.authenticateUser(), app.getCartHandler)
 	v1.DELETE("/:id", app.authenticateUser(), app.deleteCartHandler)
 	v1.PATCH("/:id", app.authenticateUser(), app.updateCartHandler)

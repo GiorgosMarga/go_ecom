@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -81,7 +82,8 @@ func (app *application) registerUserHandler(c *gin.Context) {
 	}
 	// keep cookie for a week
 	c.SetCookie("refrest_token", refreshToken, 60*60*24*7, "/", "localhost", false, true)
-	c.JSON(http.StatusCreated, gin.H{"user": user, "access_token": accessToken})
+	c.SetCookie("access_token", accessToken, 60*60*24*7, "/", "localhost", false, true)
+	c.JSON(http.StatusCreated, gin.H{"user": user})
 }
 
 func (app *application) loginUserHandler(c *gin.Context) {
@@ -133,8 +135,10 @@ func (app *application) loginUserHandler(c *gin.Context) {
 		app.internalServerError(c, err)
 		return
 	}
-	c.SetCookie("refresh_token", refreshToken, 60*60*24*7, "/", "localhost", false, true)
-	c.JSON(http.StatusOK, gin.H{"user": u, "access_token": accessToken})
+	fmt.Println(refreshToken)
+	c.SetCookie("refresh_token", refreshToken, 60*60*24*7, "/", "localhost", false, false)
+	c.SetCookie("access_token", accessToken, 60*60*24*7, "/", "localhost", false, false)
+	c.JSON(http.StatusOK, gin.H{"user": u})
 }
 
 func (app *application) updateUserHandler(c *gin.Context) {
