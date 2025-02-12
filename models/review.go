@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/GiorgosMarga/ecom_go/internal/validator"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -22,28 +23,24 @@ type ReviewModel struct {
 	coll *mongo.Collection
 }
 
-type ReviewPayload struct {
-	ProductID primitive.ObjectID `json:"product_id"`
-	Content   string             `json:"content"`
-}
 type ReviewUpdatePayload struct {
 	Content *string `json:"content"`
 }
 
-func NewReview(userID, productID primitive.ObjectID, content string) *Review {
-	return &Review{
-		UserID:    userID,
-		ProductID: productID,
-		ID:        primitive.NewObjectID(),
-		Content:   content,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
+func validateContent(v *validator.Validator, content string) {
+	v.Validate(len(content) >= 10, "content", "must be provided")
+	v.Validate(len(content) <= 5000, "content", "must be at most 5000 characters")
 }
-
+func ValidateReview(v *validator.Validator, review Review) {
+	validateContent(v, review.Content)
+}
 func (m ReviewModel) Insert(review *Review) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
+	review.ID = primitive.NewObjectID()
+	review.CreatedAt = time.Now()
+	review.UpdatedAt = time.Now()
 
 	_, err := m.coll.InsertOne(ctx, review)
 	if err != nil {

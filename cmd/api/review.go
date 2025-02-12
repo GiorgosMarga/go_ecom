@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/GiorgosMarga/ecom_go/internal/validator"
 	"github.com/GiorgosMarga/ecom_go/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,17 +25,23 @@ func (app *application) createReviewHandler(c *gin.Context) {
 		return
 	}
 
-	var payload models.ReviewPayload
+	var review models.Review
 
-	if err := c.BindJSON(&payload); err != nil {
+	if err := c.BindJSON(&review); err != nil {
 		app.badRequestError(c, err)
 		return
 	}
-	// validate payload
 
-	review := models.NewReview(user.UserID, payload.ProductID, payload.Content)
+	review.UserID = user.UserID
 
-	if err := app.models.Review.Insert(review); err != nil {
+	v := validator.NewValidator()
+
+	if models.ValidateReview(v, review); !v.IsValid() {
+		app.failedValidationError(c, v.Errors)
+		return
+	}
+
+	if err := app.models.Review.Insert(&review); err != nil {
 		app.internalServerError(c, err)
 		return
 	}
@@ -80,10 +87,10 @@ func (app *application) updateReviewHandler(c *gin.Context) {
 		app.badRequestError(c, err)
 		return
 	}
-	// validate payload
 	if payload.Content != nil {
 		review.Content = *payload.Content
 	}
+	// validate payload
 
 	if err := app.models.Review.Update(review); err != nil {
 		switch {

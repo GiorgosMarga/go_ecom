@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-const ()
+
 
 type RefreshToken struct {
 	ID        primitive.ObjectID `bson:"_id"`

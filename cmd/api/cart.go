@@ -42,7 +42,7 @@ func (app *application) createCartHandler(c *gin.Context) {
 func (app *application) getCartHandler(c *gin.Context) {
 	id := ReadIdParam(c)
 	if id.IsZero() {
-		app.badRequestError(c, fmt.Errorf("bad id"))
+		app.badRequestError(c, models.ErrInvalidID)
 		return
 	}
 

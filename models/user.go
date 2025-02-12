@@ -14,11 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-var (
-	ErrUsedEmail = errors.New("email already in use")
-	ErrInvalidID = errors.New("invalid id")
-	ErrNotFound  = errors.New("resource doesn't exist")
-)
+
 
 type Role string
 
