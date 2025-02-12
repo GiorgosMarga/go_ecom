@@ -33,6 +33,8 @@ type ProductUpdatePayload struct {
 	Price       *float64 `json:"price" bson:"price"`
 	Stock       *int     `json:"stock" bson:"stock"`
 	Rating      *int     `json:"rating" bson:"rating"`
+	Name        *string  `json:"name" bson:"name"`
+	Tags        *string  `json:"tags" bson:"tags"`
 }
 
 func validateDescription(v *validator.Validator, desc string) {
@@ -58,22 +60,11 @@ func ValidateProduct(v *validator.Validator, p Product) {
 	validateDescription(v, p.Description)
 	validatePrice(v, p.Price)
 	validateStock(v, p.Stock)
-	validateImg(v, p.Img)
+	// validateImg(v, p.Img)
 	validateName(v, p.Name)
 	validateTags(v, p.Tags)
 }
 
-func ValidateUpdatePayload(v *validator.Validator, p ProductUpdatePayload) {
-	if p.Description != nil {
-		validateDescription(v, *p.Description)
-	}
-	if p.Price != nil {
-		validatePrice(v, *p.Price)
-	}
-	if p.Stock != nil {
-		validateStock(v, *p.Stock)
-	}
-}
 func (m ProductModel) Insert(p *Product) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

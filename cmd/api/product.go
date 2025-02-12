@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -36,12 +35,10 @@ func (app *application) createProductHandler(c *gin.Context) {
 	}
 	defer file.Close()
 
-	bucket := "shoewiz"
-
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	result, err := app.uploader.Upload(ctx, &s3.PutObjectInput{
-		Bucket: &bucket,
+		Bucket: &app.cfg.bucket,
 		Key:    aws.String(header.Filename),
 		Body:   file,
 	})
@@ -50,20 +47,11 @@ func (app *application) createProductHandler(c *gin.Context) {
 		return
 	}
 	jsonData := c.PostForm("data")
-	var payload models.Product
+	var product models.Product
 
-	if err := json.Unmarshal([]byte(jsonData), &payload); err != nil {
+	if err := json.Unmarshal([]byte(jsonData), &product); err != nil {
 		app.badRequestError(c, err)
 		return
-	}
-	// TODO: validate payload
-	product := models.Product{
-		Description: payload.Description,
-		Price:       payload.Price,
-		Stock:       payload.Stock,
-		Name:        payload.Name,
-		Img:         result.Location,
-		Tags:        payload.Tags,
 	}
 
 	v := validator.NewValidator()
@@ -71,7 +59,7 @@ func (app *application) createProductHandler(c *gin.Context) {
 		app.failedValidationError(c, v.Errors)
 		return
 	}
-
+	product.Img = result.Location
 	err = app.models.Product.Insert(&product)
 	if err != nil {
 		app.internalServerError(c, err)
@@ -120,7 +108,6 @@ func (app *application) deleteProductHandler(c *gin.Context) {
 
 func (app *application) updateProductHandler(c *gin.Context) {
 	hexID := c.Param("id")
-	fmt.Println(hexID)
 	product, err := app.models.Product.GetById(hexID)
 	if err != nil {
 		switch {
@@ -132,28 +119,43 @@ func (app *application) updateProductHandler(c *gin.Context) {
 		return
 	}
 
+	// By creating a product payload we allow only specific fields to be updated.
+	// For example, if we dont include the price in the product payload, then even
+	// if the user sends the price, we will just ignore it
 	productPayload := models.ProductUpdatePayload{}
-
 	if err := c.BindJSON(&productPayload); err != nil {
 		app.badRequestError(c, err)
-		return
-	}
-
-	v := validator.NewValidator()
-
-	if models.ValidateUpdatePayload(v, productPayload); !v.IsValid() {
-		app.failedValidationError(c, v.Errors)
 		return
 	}
 
 	if productPayload.Description != nil {
 		product.Description = *productPayload.Description
 	}
+
 	if productPayload.Price != nil {
 		product.Price = *productPayload.Price
 	}
+
+	if productPayload.Rating != nil {
+		product.Rating = *productPayload.Rating
+	}
+
 	if productPayload.Stock != nil {
 		product.Stock = *productPayload.Stock
+	}
+
+	if productPayload.Name != nil {
+		product.Name = *productPayload.Name
+	}
+
+	if productPayload.Tags != nil {
+		product.Tags = *productPayload.Tags
+	}
+	v := validator.NewValidator()
+
+	if models.ValidateProduct(v, *product); !v.IsValid() {
+		app.failedValidationError(c, v.Errors)
+		return
 	}
 
 	err = app.models.Product.Update(product)
