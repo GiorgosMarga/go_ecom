@@ -44,6 +44,7 @@ func getIds(products []CartProduct) []primitive.ObjectID {
 func (m CartModel) Insert(c *Cart) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+	
 	c.ID = primitive.NewObjectID()
 	c.Active = 1
 	c.CreatedAt = time.Now()

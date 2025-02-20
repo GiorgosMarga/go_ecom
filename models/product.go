@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/GiorgosMarga/ecom_go/internal/validator"
@@ -15,24 +16,27 @@ type Product struct {
 	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Name        string             `json:"name" bson:"name"`
 	Tags        string             `json:"tags" bson:"tags"`
-	Img         string             `json:"img" bson:"img"`
 	Description string             `json:"description" bson:"description"`
 	Price       float64            `json:"price" bson:"price"`
-	Stock       int                `json:"-" bson:"stock"`
-	Rating      int                `json:"rating" bason:"rating"`
-	CreatedAt   time.Time          `json:"-" bson:"created_at"`
-	UpdatedAt   time.Time          `json:"-" bson:"updated_at"`
+
+	// Moved to variants
+	// Img         []string           `json:"img" bson:"img"`
+	// Stock       int                `json:"-" bson:"stock"`
+	// Rating      int                `json:"rating" bason:"rating"`
+
+	Variants  []ProductVariant `json:"variants"`
+	CreatedAt time.Time        `json:"-" bson:"created_at"`
+	UpdatedAt time.Time        `json:"-" bson:"updated_at"`
 }
 
 type ProductModel struct {
-	coll *mongo.Collection
+	coll         *mongo.Collection
+	variantsColl *mongo.Collection
 }
 
 type ProductUpdatePayload struct {
 	Description *string  `json:"description" bson:"description"`
 	Price       *float64 `json:"price" bson:"price"`
-	Stock       *int     `json:"stock" bson:"stock"`
-	Rating      *int     `json:"rating" bson:"rating"`
 	Name        *string  `json:"name" bson:"name"`
 	Tags        *string  `json:"tags" bson:"tags"`
 }
@@ -43,9 +47,7 @@ func validateDescription(v *validator.Validator, desc string) {
 func validatePrice(v *validator.Validator, price float64) {
 	v.Validate(price > 0, "price", "must be positive")
 }
-func validateStock(v *validator.Validator, stock int) {
-	v.Validate(stock >= 0, "stock", "must be positive")
-}
+
 func validateImg(v *validator.Validator, img string) {
 	v.Validate(len(img) > 0, "img", "must be provided")
 }
@@ -59,7 +61,6 @@ func validateTags(v *validator.Validator, tags string) {
 func ValidateProduct(v *validator.Validator, p Product) {
 	validateDescription(v, p.Description)
 	validatePrice(v, p.Price)
-	validateStock(v, p.Stock)
 	// validateImg(v, p.Img)
 	validateName(v, p.Name)
 	validateTags(v, p.Tags)
@@ -86,7 +87,7 @@ func (m ProductModel) GetById(id string) (*Product, error) {
 	if err != nil {
 		return nil, ErrInvalidID
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	p := &Product{}
@@ -99,6 +100,17 @@ func (m ProductModel) GetById(id string) (*Product, error) {
 		default:
 			return nil, err
 		}
+	}
+	filter = bson.M{"product_id": productID}
+
+	cursor, err := m.variantsColl.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	if err := cursor.All(ctx, &p.Variants); err != nil {
+		fmt.Println(p.Variants)
+		return nil, err
 	}
 	return p, nil
 }

@@ -57,6 +57,7 @@ func ValidateOrderUpdatePayload(v *validator.Validator, payload OrderUpdatePaylo
 func (m OrderModel) Insert(order *Order) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+	
 	order.ID = primitive.NewObjectID()
 	order.Status = StatusPending
 	order.CreatedAt = time.Now()

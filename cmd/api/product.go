@@ -1,16 +1,11 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/GiorgosMarga/ecom_go/internal/validator"
 	"github.com/GiorgosMarga/ecom_go/models"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,32 +19,9 @@ func (app *application) registerProductRoutes(router *gin.Engine) {
 }
 
 func (app *application) createProductHandler(c *gin.Context) {
-	if err := c.Request.ParseMultipartForm(32 << 20); err != nil { // 32 MB max memory
-		app.badRequestError(c, err)
-		return
-	}
-	file, header, err := c.Request.FormFile("image")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Image is required"})
-		return
-	}
-	defer file.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	result, err := app.uploader.Upload(ctx, &s3.PutObjectInput{
-		Bucket: &app.cfg.bucket,
-		Key:    aws.String(header.Filename),
-		Body:   file,
-	})
-	if err != nil {
-		app.internalServerError(c, err)
-		return
-	}
-	jsonData := c.PostForm("data")
 	var product models.Product
 
-	if err := json.Unmarshal([]byte(jsonData), &product); err != nil {
+	if err := c.BindJSON(&product); err != nil {
 		app.badRequestError(c, err)
 		return
 	}
@@ -59,8 +31,8 @@ func (app *application) createProductHandler(c *gin.Context) {
 		app.failedValidationError(c, v.Errors)
 		return
 	}
-	product.Img = result.Location
-	err = app.models.Product.Insert(&product)
+	// product.Img = imagePaths
+	err := app.models.Product.Insert(&product)
 	if err != nil {
 		app.internalServerError(c, err)
 		return
@@ -134,14 +106,6 @@ func (app *application) updateProductHandler(c *gin.Context) {
 
 	if productPayload.Price != nil {
 		product.Price = *productPayload.Price
-	}
-
-	if productPayload.Rating != nil {
-		product.Rating = *productPayload.Rating
-	}
-
-	if productPayload.Stock != nil {
-		product.Stock = *productPayload.Stock
 	}
 
 	if productPayload.Name != nil {

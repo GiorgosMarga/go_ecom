@@ -4,13 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/GiorgosMarga/ecom_go/internal/validator"
 	"github.com/GiorgosMarga/ecom_go/models"
 	"github.com/GiorgosMarga/ecom_go/utils"
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func (app *application) registerUserRoutes(router *gin.Engine) {
@@ -38,20 +36,13 @@ func (app *application) getUserByIdHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 func (app *application) registerUserHandler(c *gin.Context) {
-	payload := models.UserPayload{}
-	err := c.BindJSON(&payload)
+	user := models.User{}
+	err := c.BindJSON(&user)
 	if err != nil {
 		app.badRequestError(c, err)
 		return
 	}
-	user := models.User{
-		ID:           primitive.NewObjectID(),
-		Email:        payload.Email,
-		PasswordHash: payload.Password,
-		Role:         models.GetRole(models.UserRole),
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
+
 	v := validator.NewValidator()
 	if models.ValidateUser(v, user); !v.IsValid() {
 		app.failedValidationError(c, v.Errors)
@@ -87,16 +78,12 @@ func (app *application) registerUserHandler(c *gin.Context) {
 }
 
 func (app *application) loginUserHandler(c *gin.Context) {
-	payload := models.UserPayload{}
+	user := models.User{}
 
-	err := c.BindJSON(&payload)
+	err := c.BindJSON(&user)
 	if err != nil {
 		app.badRequestError(c, err)
 		return
-	}
-	user := models.User{
-		Email:        payload.Email,
-		PasswordHash: payload.Password,
 	}
 
 	v := validator.NewValidator()

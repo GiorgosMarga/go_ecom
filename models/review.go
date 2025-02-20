@@ -16,6 +16,7 @@ type Review struct {
 	UserID    primitive.ObjectID `json:"user_id" bson:"user_id"`
 	ProductID primitive.ObjectID `json:"product_id" bson:"product_id"`
 	Content   string             `json:"content" bson:"content"`
+	Rating    int                `json:"rating" bson:"rating"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
 }

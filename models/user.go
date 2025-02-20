@@ -3,7 +3,6 @@ package models
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/GiorgosMarga/ecom_go/internal/validator"
@@ -13,8 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
-
-
 
 type Role string
 
@@ -41,7 +38,7 @@ type UserModel struct {
 type User struct {
 	ID           primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Email        string             `json:"email" bson:"email"`
-	PasswordHash string             `json:"-" bson:"password_hash"`
+	PasswordHash string             `json:"password,omitmepty" bson:"password_hash"`
 	Role         Role               `json:"-" bson:"role"`
 	CreatedAt    time.Time          `json:"-" bson:"created_at"`
 	UpdatedAt    time.Time          `json:"-" bson:"updated_at"`
@@ -102,7 +99,13 @@ func (m UserModel) Insert(user *User) error {
 	if err != nil {
 		return err
 	}
+
+	user.ID = primitive.NewObjectID()
 	user.PasswordHash = hashedPassword
+	user.Role = GetRole(UserRole)
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+
 	_, err = m.coll.InsertOne(ctx, user)
 	if err != nil {
 		return err
@@ -152,10 +155,12 @@ func (m UserModel) Update(user *User) error {
 	update := bson.D{
 		{Key: "$set", Value: user},
 	}
-	_, err := m.coll.UpdateOne(ctx, bson.M{"_id": user.ID}, update)
+	res, err := m.coll.UpdateOne(ctx, bson.M{"_id": user.ID}, update)
 	if err != nil {
-		fmt.Println(err)
 		return err
+	}
+	if res.ModifiedCount == 0 {
+		return ErrNotFound
 	}
 	return nil
 }
