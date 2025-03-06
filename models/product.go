@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -17,34 +16,28 @@ type Product struct {
 	Name        string             `json:"name" bson:"name"`
 	Tags        string             `json:"tags" bson:"tags"`
 	Description string             `json:"description" bson:"description"`
-	Price       float64            `json:"price" bson:"price"`
+	Price       int                `json:"price" bson:"price"`
 
-	// Moved to variants
-	// Img         []string           `json:"img" bson:"img"`
-	// Stock       int                `json:"-" bson:"stock"`
-	// Rating      int                `json:"rating" bason:"rating"`
-
-	Variants  []ProductVariant `json:"variants"`
-	CreatedAt time.Time        `json:"-" bson:"created_at"`
-	UpdatedAt time.Time        `json:"-" bson:"updated_at"`
+	Variants  []Variant `json:"variants,omitempty" bson:"variants,omitmepty"`
+	CreatedAt time.Time `json:"-" bson:"created_at"`
+	UpdatedAt time.Time `json:"-" bson:"updated_at"`
 }
 
 type ProductModel struct {
-	coll         *mongo.Collection
-	variantsColl *mongo.Collection
+	coll *mongo.Collection
 }
 
 type ProductUpdatePayload struct {
-	Description *string  `json:"description" bson:"description"`
-	Price       *float64 `json:"price" bson:"price"`
-	Name        *string  `json:"name" bson:"name"`
-	Tags        *string  `json:"tags" bson:"tags"`
+	Description *string `json:"description" bson:"description"`
+	Price       *int    `json:"price" bson:"price"`
+	Name        *string `json:"name" bson:"name"`
+	Tags        *string `json:"tags" bson:"tags"`
 }
 
 func validateDescription(v *validator.Validator, desc string) {
 	v.Validate(validator.CheckLength(desc, 5, 5000), "description", "must be between 5 and 5000 characters long")
 }
-func validatePrice(v *validator.Validator, price float64) {
+func validatePrice(v *validator.Validator, price int) {
 	v.Validate(price > 0, "price", "must be positive")
 }
 
@@ -90,29 +83,47 @@ func (m ProductModel) GetById(id string) (*Product, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	p := &Product{}
-
-	filter := bson.M{"_id": productID}
-	if err := m.coll.FindOne(ctx, filter).Decode(&p); err != nil {
-		switch {
-		case errors.Is(err, mongo.ErrNoDocuments):
-			return nil, ErrNotFound
-		default:
-			return nil, err
-		}
+	p := Product{}
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"_id": productID}}}, // Filter by specific product ID
+		{{Key: "$lookup", Value: bson.M{
+			"from":         "variants",
+			"localField":   "_id",
+			"foreignField": "product_id",
+			"as":           "variants",
+		}}},
+		{{Key: "$unwind", Value: bson.M{"path": "$variants", "preserveNullAndEmptyArrays": true}}},
+		{{Key: "$group", Value: bson.M{
+			"_id":         "$_id",
+			"name":        bson.D{{Key: "$first", Value: "$name"}},
+			"tags":        bson.D{{Key: "$first", Value: "$tags"}},
+			"description": bson.D{{Key: "$first", Value: "$description"}},
+			"price":       bson.D{{Key: "$first", Value: "$price"}},
+			"variants":    bson.D{{Key: "$push", Value: "$variants"}},
+			"created_at":  bson.D{{Key: "$first", Value: "$created_at"}},
+			"updated_at":  bson.D{{Key: "$first", Value: "$updated_at"}},
+		}}},
 	}
-	filter = bson.M{"product_id": productID}
-
-	cursor, err := m.variantsColl.Find(ctx, filter)
+	cursor, err := m.coll.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
+
 	defer cursor.Close(ctx)
-	if err := cursor.All(ctx, &p.Variants); err != nil {
-		fmt.Println(p.Variants)
+
+	if !cursor.Next(ctx) {
+		return nil, ErrNotFound
+	}
+	if err := cursor.Decode(&p); err != nil {
 		return nil, err
 	}
-	return p, nil
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	fmt.Println(p)
+
+	return &p, nil
 }
 
 func (m ProductModel) Delete(id string) error {
@@ -153,30 +164,4 @@ func (m ProductModel) Update(product *Product) error {
 		return ErrNotFound
 	}
 	return nil
-}
-
-func (m ProductModel) GetPriceForOrder(idToQuantity map[primitive.ObjectID]int) (float64, error) {
-	ids := make([]primitive.ObjectID, 0)
-	for k := range idToQuantity {
-		ids = append(ids, k)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	products := make([]Product, 0)
-	filter := bson.M{"_id": bson.M{"$in": ids}}
-	cursor, err := m.coll.Find(ctx, filter)
-	if err != nil {
-		return 0, err
-	}
-
-	if err := cursor.All(ctx, &products); err != nil {
-		return 0, err
-	}
-
-	total := 0.0
-	for _, product := range products {
-		total += float64(idToQuantity[product.ID]) * product.Price
-	}
-	return total, err
 }

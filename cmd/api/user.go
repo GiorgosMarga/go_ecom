@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/GiorgosMarga/ecom_go/internal/validator"
@@ -87,7 +86,7 @@ func (app *application) loginUserHandler(c *gin.Context) {
 	}
 
 	v := validator.NewValidator()
-	if models.ValidateUser(v, user); !v.IsValid() {
+	if models.ValidateUserLogin(v, user); !v.IsValid() {
 		app.failedValidationError(c, v.Errors)
 		return
 	}
@@ -112,6 +111,10 @@ func (app *application) loginUserHandler(c *gin.Context) {
 		}
 		return
 	}
+
+	// Change user password to not send them back to the client
+	u.PasswordHash = ""
+
 	accessToken, err := app.createAccessToken(*u)
 	if err != nil {
 		app.internalServerError(c, err)
@@ -122,9 +125,8 @@ func (app *application) loginUserHandler(c *gin.Context) {
 		app.internalServerError(c, err)
 		return
 	}
-	fmt.Println(refreshToken)
-	c.SetCookie("refresh_token", refreshToken, 60*60*24*7, "/", "localhost", false, false)
-	c.SetCookie("access_token", accessToken, 60*60*24*7, "/", "localhost", false, false)
+	c.SetCookie("refresh_token", refreshToken, 60*60*24*7, "/", "localhost", false, false) // 7 days
+	c.SetCookie("access_token", accessToken, 60*60*24*7, "/", "localhost", false, false)   // 7 days
 	c.JSON(http.StatusOK, gin.H{"user": u})
 }
 
@@ -165,6 +167,9 @@ func (app *application) updateUserHandler(c *gin.Context) {
 	}
 	if payload.Role != nil {
 		user.Role = *payload.Role
+	}
+	if payload.Name != nil {
+		user.Name = *payload.Name
 	}
 	if payload.Password != nil {
 		pwd, err := utils.HashPassword(*payload.Password)

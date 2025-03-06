@@ -1,6 +1,9 @@
 package main
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type config struct {
 	port        string
@@ -10,6 +13,7 @@ type config struct {
 	s3AccessKey string
 	s3SecretKey string
 	bucket      string
+	stripeKey   string
 }
 
 func NewConfig() *config {
@@ -21,6 +25,7 @@ func NewConfig() *config {
 		s3AccessKey: readENV("S3_ACCESS_KEY", ""),
 		s3SecretKey: readENV("S3_SECRET_KEY", ""),
 		bucket:      readENV("BUCKET_NAME", "shoewiz"),
+		stripeKey:   readENV("STRIPE_KEY", ""),
 	}
 }
 
@@ -29,5 +34,6 @@ func readENV(key, defaultVal string) string {
 	if value == "" {
 		return defaultVal
 	}
+	fmt.Printf("Read successfully: %s\n", key)
 	return value
 }

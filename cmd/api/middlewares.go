@@ -45,7 +45,6 @@ func (app *application) authenticateUser() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
 		accessToken := splittedHeader[1]
 
 		jwtToken, err := app.verifyToken(accessToken)

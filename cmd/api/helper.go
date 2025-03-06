@@ -41,7 +41,7 @@ func (app *application) createAccessToken(user models.User) (string, error) {
 		UserInfo: models.UserInfo{
 			UserID: user.ID,
 			Email:  user.Email,
-			Role:   models.GetRole(models.AdminRole),
+			Role:   user.Role,
 		},
 		RegisteredClaims: registeredClaims,
 	}
@@ -80,7 +80,6 @@ func (app *application) verifyToken(token string) (*jwt.Token, error) {
 	t, err := jwt.ParseWithClaims(token, &models.UserTokenClaims{}, func(t *jwt.Token) (interface{}, error) {
 		return app.cfg.jwtSecret, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

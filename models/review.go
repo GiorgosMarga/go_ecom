@@ -12,13 +12,19 @@ import (
 )
 
 type Review struct {
-	ID        primitive.ObjectID `json:"id" bson:"_id"`
+	ID        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	UserID    primitive.ObjectID `json:"user_id" bson:"user_id"`
+	User      ReviewUser         `json:"user,omitempty" bson:"user,omitempty"`
 	ProductID primitive.ObjectID `json:"product_id" bson:"product_id"`
+	VariantID primitive.ObjectID `json:"variant_id" bson:"variant_id"`
 	Content   string             `json:"content" bson:"content"`
 	Rating    int                `json:"rating" bson:"rating"`
-	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
+	CreatedAt time.Time          `json:"created_at,omitempty" bson:"created_at,omitempty"`
+	UpdatedAt time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
+}
+
+type ReviewUser struct {
+	Name string `json:"name" bson:"name"`
 }
 type ReviewModel struct {
 	coll *mongo.Collection
@@ -26,6 +32,7 @@ type ReviewModel struct {
 
 type ReviewUpdatePayload struct {
 	Content *string `json:"content"`
+	Rating  *int    `json:"rating"`
 }
 
 func validateContent(v *validator.Validator, content string) {
@@ -71,13 +78,57 @@ func (m ReviewModel) Delete(id primitive.ObjectID, user *UserInfo) error {
 	}
 	return nil
 }
-func (m ReviewModel) Get(id primitive.ObjectID) (*Review, error) {
+func (m ReviewModel) GetForProduct(id string) ([]Review, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	review := &Review{}
-	filter := bson.M{"_id": id}
-	err := m.coll.FindOne(ctx, filter).Decode(&review)
+	productId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, ErrInvalidID
+	}
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"product_id": productId}}},
+		{{Key: "$lookup", Value: bson.M{
+			"from":         "users",
+			"localField":   "user_id",
+			"foreignField": "_id",
+			"as":           "user",
+		}}},
+		{{Key: "$unwind", Value: bson.M{
+			"path":                       "$user",
+			"preserveNullAndEmptyArrays": true,
+		}}},
+	}
+	cursor, err := m.coll.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+	var reviews []Review
+
+	if err := cursor.All(ctx, &reviews); err != nil {
+		return nil, err
+	}
+	if len(reviews) == 0 {
+		return nil, ErrNotFound
+	}
+	return reviews, nil
+}
+
+func (m ReviewModel) GetByID(id string) (*Review, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	reviewId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, ErrInvalidID
+	}
+
+	filter := bson.M{"_id": reviewId}
+
+	var review Review
+	err = m.coll.FindOne(ctx, filter).Decode(&review)
 	if err != nil {
 		switch {
 		case errors.Is(err, mongo.ErrNoDocuments):
@@ -86,7 +137,7 @@ func (m ReviewModel) Get(id primitive.ObjectID) (*Review, error) {
 			return nil, err
 		}
 	}
-	return review, nil
+	return &review, nil
 }
 
 func (m ReviewModel) Update(review *Review) error {

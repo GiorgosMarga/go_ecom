@@ -12,7 +12,7 @@ import (
 
 func (app *application) registerReviewRoutes(router *gin.Engine) {
 	v1 := router.Group("/api/v1/review")
-	v1.POST("/", app.authenticateUser(), app.createReviewHandler)
+	v1.POST("", app.authenticateUser(), app.createReviewHandler)
 	v1.PATCH("/:id", app.authenticateUser(), app.updateReviewHandler)
 	v1.GET("/:id", app.getReviewHandler)
 	v1.DELETE("/:id", app.authenticateUser(), app.deleteReviewHandler)
@@ -57,18 +57,13 @@ func (app *application) updateReviewHandler(c *gin.Context) {
 		return
 	}
 
-	id := ReadIdParam(c)
-	if id == primitive.NilObjectID {
-		app.badRequestError(c, models.ErrInvalidID)
-		return
-	}
+	id := c.Params.ByName("id")
 
-	review, err := app.models.Review.Get(id)
+	review, err := app.models.Review.GetByID(id)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrNotFound):
 			app.notFoundError(c)
-			return
 		default:
 			app.internalServerError(c, err)
 		}
@@ -108,24 +103,20 @@ func (app *application) updateReviewHandler(c *gin.Context) {
 
 func (app *application) getReviewHandler(c *gin.Context) {
 
-	id := ReadIdParam(c)
-	if id == primitive.NilObjectID {
-		app.badRequestError(c, ErrInvalidJWT)
-		return
-	}
+	id := c.Params.ByName("id")
 	// validate payload
-	review, err := app.models.Review.Get(id)
+	reviews, err := app.models.Review.GetForProduct(id)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrNotFound):
 			app.notFoundError(c)
 		default:
 			app.internalServerError(c, err)
-			return
 		}
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"review": review})
+	c.JSON(http.StatusOK, gin.H{"reviews": reviews})
 
 }
 

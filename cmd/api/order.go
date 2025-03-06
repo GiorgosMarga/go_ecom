@@ -7,7 +7,6 @@ import (
 	"github.com/GiorgosMarga/ecom_go/internal/validator"
 	"github.com/GiorgosMarga/ecom_go/models"
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func (app *application) registerOrderRoutes(router *gin.Engine) {
@@ -32,18 +31,18 @@ func (app *application) createOrderHandler(c *gin.Context) {
 		return
 	}
 
-	idToQuantity := make(map[primitive.ObjectID]int)
-	for _, p := range order.Products {
-		idToQuantity[p.ProductId] += p.Quantity
-	}
+	// idToQuantity := make(map[primitive.ObjectID]int)
+	// for _, p := range order.Products {
+	// 	idToQuantity[p.ProductId] += p.Quantity
+	// }
 
-	total, err := app.models.Product.GetPriceForOrder(idToQuantity)
-	if err != nil {
-		app.internalServerError(c, err)
-		return
-	}
+	// total, err := app.models.Product.GetPriceForOrder(idToQuantity)
+	// if err != nil {
+	// 	app.internalServerError(c, err)
+	// 	return
+	// }
 	order.UserId = user.UserID
-	order.Total = total
+	// order.Total = total
 	if err := app.models.Order.Insert(&order); err != nil {
 		app.internalServerError(c, err)
 		return

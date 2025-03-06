@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/stripe/stripe-go/v81"
 )
 
 type application struct {
@@ -25,7 +27,10 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+
+	stripe.Key = cfg.stripeKey
 	defer func() {
+		fmt.Println("Disconnecting from DB")
 		if err := db.Client().Disconnect(context.Background()); err != nil {
 			log.Fatal(err)
 		}

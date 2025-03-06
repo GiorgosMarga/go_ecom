@@ -38,20 +38,18 @@ type UserModel struct {
 type User struct {
 	ID           primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Email        string             `json:"email" bson:"email"`
-	PasswordHash string             `json:"password,omitmepty" bson:"password_hash"`
-	Role         Role               `json:"-" bson:"role"`
+	PasswordHash string             `json:"password,omitempty" bson:"password_hash"`
+	Name         string             `json:"name" bson:"name"`
+	Role         Role               `json:"role" bson:"role"`
 	CreatedAt    time.Time          `json:"-" bson:"created_at"`
 	UpdatedAt    time.Time          `json:"-" bson:"updated_at"`
 }
 
-type UserPayload struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
 type UserUpdatePayload struct {
 	Email    *string `json:"email"`
 	Password *string `json:"password"`
 	Role     *Role   `json:"role"`
+	Name     *string `json:"name"`
 }
 type UserTokenClaims struct {
 	jwt.RegisteredClaims
@@ -75,12 +73,23 @@ func validateEmail(v *validator.Validator, email string) {
 	v.Validate(len(email) != 0, "email", "must be provided")
 	v.Validate(validator.CheckLength(email, 3, 100), "email", "length must be between 3 and 100 characters")
 }
+
+func validateUserName(v *validator.Validator, name string) {
+	v.Validate(len(name) != 0, "name", "must be provided")
+	v.Validate(validator.CheckLength(name, 3, 100), "name", "length must be between 3 and 100 characters")
+}
 func ValidateUser(v *validator.Validator, u User) {
 	validatePassword(v, u.PasswordHash)
 	validateEmail(v, u.Email)
+	validateUserName(v, u.Name)
 	if u.Role != "" {
 		v.Validate(u.Role.Validate(), "role", "invalid")
 	}
+}
+
+func ValidateUserLogin(v *validator.Validator, u User) {
+	validatePassword(v, u.PasswordHash)
+	validateEmail(v, u.Email)
 }
 
 func (m UserModel) Insert(user *User) error {

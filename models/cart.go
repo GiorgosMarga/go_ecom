@@ -16,7 +16,7 @@ type CartProduct struct {
 }
 
 type Cart struct {
-	ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ID        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	UserId    primitive.ObjectID `json:"-" bson:"user_id"`
 	Products  []CartProduct      `json:"products" bson:"products"`
 	Total     float64            `json:"total" bson:"total"`
@@ -44,7 +44,7 @@ func getIds(products []CartProduct) []primitive.ObjectID {
 func (m CartModel) Insert(c *Cart) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	
+
 	c.ID = primitive.NewObjectID()
 	c.Active = 1
 	c.CreatedAt = time.Now()
